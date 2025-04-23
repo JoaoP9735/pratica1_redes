@@ -3,6 +3,7 @@ import asyncio
 from tcp import Servidor
 import re
 
+apelido_conexao = {}
 
 def validar_nome(nome):
     return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
@@ -16,14 +17,59 @@ def sair(conexao):
 def dados_recebidos(conexao, dados):
     if dados == b'':
         return sair(conexao)
-    print(conexao, dados)
+    if b'\r\n' not in conexao.buffer+dados:
+        conexao.buffer += dados
+        return
+    dados = conexao.buffer + dados
+    while b'\r\n' in dados:    
+        linha, dados = dados.split(b'\r\n', 1)
+        print(conexao, linha)
+        conexao_destino, mensagem = msg(conexao,linha + b'\r\n')
+        if(mensagem is not None):
+            conexao_destino.enviar(mensagem)
 
+    conexao.buffer += dados
 
 def conexao_aceita(conexao):
     print(conexao, 'nova conexão')
     conexao.registrar_recebedor(dados_recebidos)
 
-
+def msg(conexao,mensagem):
+    ping = re.match(br'^PING\s+(\S+)\r\n$', mensagem)
+    nick = re.match(br'^NICK\s+(\S+)\r\n$', mensagem)
+    priv = re.match(br'^PRIVMSG\s+(\S+)\s+:(\S+)\r\n$', mensagem)
+    if ping:
+        payload = ping.group(1)
+        return conexao,b':server PONG server :' + payload + b'\r\n'
+    elif nick:
+        apelido = nick.group(1)
+        if validar_nome(apelido):
+            lower_apelidos = {k.lower() for k in apelido_conexao}
+            if(apelido.lower() not in lower_apelidos):
+                if(conexao in apelido_conexao.values()):
+                    for apelido_antigo, value in apelido_conexao.items():
+                        if value == conexao:
+                            del apelido_conexao[apelido_antigo]
+                            apelido_conexao[apelido] = conexao
+                            return conexao,b':' + apelido_antigo + b' NICK ' + apelido + b'\r\n'
+                else:
+                    apelido_conexao[apelido] = conexao
+                    return conexao,b':server 001 ' + apelido + b' :Welcome' + b'\r\n' + b':server 422 ' + apelido + b' :MOTD File is missing\r\n'
+            else:
+                if(conexao in apelido_conexao.values()):
+                    for apelido_atual, value in apelido_conexao.items():
+                        if value == conexao:
+                            return conexao, b':server 433 ' + apelido_atual + b' ' + apelido + b' :Nickname is already in use\r\n'
+                return conexao, b':server 433 * ' + apelido + b' :Nickname is already in use\r\n'
+        return conexao, b':server 432 * ' + apelido + b' :Erroneous nickname\r\n'
+    elif priv:
+        dest = priv.group(1)
+        conteudo = priv.group(2)
+        for remetente, value in apelido_conexao.items():
+            if value == conexao:
+                return apelido_conexao[dest],b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
+    return None
+    
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
 asyncio.get_event_loop().run_forever()
