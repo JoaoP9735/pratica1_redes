@@ -4,6 +4,7 @@ from tcp import Servidor
 import re
 
 apelido_conexao = {}
+buffer = {}
 
 def validar_nome(nome):
     return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
@@ -15,12 +16,14 @@ def sair(conexao):
 
 
 def dados_recebidos(conexao, dados):
+    if conexao not in buffer:
+        buffer[conexao] = b''
     if dados == b'':
         return sair(conexao)
-    if b'\r\n' not in conexao.buffer+dados:
-        conexao.buffer += dados
+    if b'\r\n' not in buffer[conexao]+dados:
+        buffer[conexao] += dados
         return
-    dados = conexao.buffer + dados
+    dados = buffer[conexao] + dados
     while b'\r\n' in dados:    
         linha, dados = dados.split(b'\r\n', 1)
         print(conexao, linha)
@@ -28,7 +31,7 @@ def dados_recebidos(conexao, dados):
         if(mensagem is not None):
             conexao_destino.enviar(mensagem)
 
-    conexao.buffer += dados
+    buffer[conexao] += dados
 
 def conexao_aceita(conexao):
     print(conexao, 'nova conexão')
@@ -38,6 +41,7 @@ def msg(conexao,mensagem):
     ping = re.match(br'^PING\s+(\S+)\r\n$', mensagem)
     nick = re.match(br'^NICK\s+(\S+)\r\n$', mensagem)
     priv = re.match(br'^PRIVMSG\s+(\S+)\s+:(\S+)\r\n$', mensagem)
+    join = re.match(br'^JOIN\s+(\S+)\r\n', mensagem)
     if ping:
         payload = ping.group(1)
         return conexao,b':server PONG server :' + payload + b'\r\n'
@@ -73,6 +77,12 @@ def msg(conexao,mensagem):
             for remetente, value in apelido_conexao.items():
                 if value == conexao:
                     return apelido_conexao[dest], b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
+    elif join:
+        canal = join.group(1)
+        nome_canal = canal[1:]
+        if canal[0] != b'#' or not validar_nome(nome_canal):
+            return b':server 403 ' + canal + b' :No such channel'
+                 
     return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
