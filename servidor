@@ -64,12 +64,16 @@ def msg(conexao,mensagem):
         return conexao, b':server 432 * ' + apelido + b' :Erroneous nickname\r\n'
     elif priv:
         dest = priv.group(1)
+        for destinatario, value in apelido_conexao.items():
+            if destinatario.lower() == dest.lower():
+                dest = destinatario
         conteudo = priv.group(2)
-        for remetente, value in apelido_conexao.items():
-            if value == conexao:
-                return apelido_conexao[dest],b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
-    return None
-    
+        apelidos_lower = {n.lower() for n in apelido_conexao}
+        if dest.lower() in apelidos_lower:
+            for remetente, value in apelido_conexao.items():
+                if value == conexao:
+                    return apelido_conexao[dest], b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
+    return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
 asyncio.get_event_loop().run_forever()
