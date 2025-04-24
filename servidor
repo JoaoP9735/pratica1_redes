@@ -89,28 +89,16 @@ def msg(conexao,mensagem):
                         membro.enviar(mensagem_enviar)
                 return None, None  # Não precisa retornar mensagem para o remetente
         else:
-            # Se for um usuário
-            apelido_destino = None
-            for ayy in apelido_conexao.items():
-                if a.lower() == dest.lower():
-                    apelido_destino = a
-                    break
-            
-            if apelido_destino:
-                # Enviar a mensagem para o usuário destino
-                remetente = None
-                for a, c in apelido_conexao.items():
-                    if c == conexao:
-                        remetente = a
-                        break
-                if not remetente:
-                    return None, None  # Ignorar se o remetente não tiver apelido registrado
-                
-                mensagem_enviar = b':' + remetente + b' PRIVMSG ' + apelido_destino + b' :' + conteudo + b'\r\n'
-                apelido_conexao[apelido_destino].enviar(mensagem_enviar)
-            else:
-                # Caso o apelido destino não exista
-                return conexao, b':server 401 ' + dest + b' :No such nick/channel\r\n'
+            for destinatario, value in apelido_conexao.items(): # Verifica se o destinatário tem uma conexão estabelecida
+                if destinatario.lower() == dest.lower():
+                    dest = destinatario
+            if dest:
+                apelidos_lower = {n.lower() for n in apelido_conexao} # Torna a verificação insensúvel a case
+                if dest.lower() in apelidos_lower:
+                    for remetente, value in apelido_conexao.items():
+                        if value == conexao:
+                            return apelido_conexao[dest], b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
+            return None, None
     elif join:
         canal = join.group(1)
         if canal[0:1] != b'#' or not validar_nome(canal[1:]):
