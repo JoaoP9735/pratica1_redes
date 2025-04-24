@@ -138,9 +138,7 @@ def msg(conexao,mensagem):
                 membro.enviar(b':' + apelido + b' JOIN :' + canal + b'\r\n')
 
         # Enviar lista de usuários do canal para quem acabou de entrar
-        nomes_usuarios = ' '.join([
-            apelido.decode() for apelido, conn in apelido_conexao.items() if conn in canais[nome_canal]
-        ])
+        nomes_usuarios = ' '.join(sorted([apelido.decode() for apelido, conn in apelido_conexao.items() if conn in canais[nome_canal]]))
 
         conexao.enviar(b':server 353 ' + apelido + b' = ' + canal + b' :' + nomes_usuarios.encode() + b'\r\n')
         conexao.enviar(b':server 366 ' + apelido + b' ' + canal + b' :End of /NAMES list.\r\n')    
