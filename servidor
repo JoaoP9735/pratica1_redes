@@ -69,8 +69,7 @@ def msg(conexao,mensagem):
         return conexao, b':server 432 * ' + apelido + b' :Erroneous nickname\r\n'
     elif priv:
         dest = priv.group(1)
-        conteudo = priv.group(2)
-        
+        conteudo = priv.group(2)    
         # Verificar se o destinatário é um canal
         if dest.startswith(b'#'):
             nome_canal = dest.lower()
@@ -89,11 +88,10 @@ def msg(conexao,mensagem):
                     if membro != conexao:  # Não enviar para si mesmo
                         membro.enviar(mensagem_enviar)
                 return None, None  # Não precisa retornar mensagem para o remetente
-
         else:
             # Se for um usuário
             apelido_destino = None
-            for a, c in apelido_conexao.items():
+            for ayy in apelido_conexao.items():
                 if a.lower() == dest.lower():
                     apelido_destino = a
                     break
@@ -115,7 +113,36 @@ def msg(conexao,mensagem):
                 return conexao, b':server 401 ' + dest + b' :No such nick/channel\r\n'
     elif join:
         canal = join.group(1)
-                 
+        if canal[0:1] != b'#' or not validar_nome(canal[1:]):
+            return conexao, b':server 403 ' + canal + b' :No such channel\r\n'
+
+        # pegar apelido do usuário
+        apelido = None
+        for a, c in apelido_conexao.items():
+            if c == conexao:
+                apelido = a
+                break
+        if not apelido:
+            return None, None  # ignorar se ainda não tiver apelido
+
+        nome_canal = canal.lower()
+
+        if nome_canal not in canais:
+            canais[nome_canal] = set()
+        canais[nome_canal].add(conexao)
+
+        # Mensagem JOIN para todos do canal
+        for membro in canais[nome_canal]:
+                membro.enviar(b':' + apelido + b' JOIN :' + canal + b'\r\n')
+
+        # Enviar lista de usuários do canal para quem acabou de entrar
+        nomes_usuarios = ' '.join([
+            apelido.decode() for apelido, conn in apelido_conexao.items() if conn in canais[nome_canal]
+        ])
+
+        conexao.enviar(b':server 353 ' + apelido + b' = ' + canal + b' :' + nomes_usuarios.encode() + b'\r\n')
+        conexao.enviar(b':server 366 ' + apelido + b' ' + canal + b' :End of /NAMES list\r\n')    
+             
     return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
