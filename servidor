@@ -135,8 +135,16 @@ def msg(conexao,mensagem):
 
         # Mensagem JOIN para todos do canal
         for membro in canais[nome_canal]:
-            membro.enviar(b':' + apelido + b' JOIN :' + canal + b'\r\n')
-                 
+                membro.enviar(b':' + apelido + b' JOIN :' + canal + b'\r\n')
+
+        # Enviar lista de usuários do canal para quem acabou de entrar
+        nomes_usuarios = ' '.join([
+            apelido.decode() for apelido, conn in apelido_conexao.items() if conn in canais[nome_canal]
+        ])
+
+        conexao.enviar(b':server 353 ' + apelido + b' = ' + canal + b' :' + nomes_usuarios.encode() + b'\r\n')
+        conexao.enviar(b':server 366 ' + apelido + b' ' + canal + b' :End of /NAMES list\r\n')    
+             
     return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
