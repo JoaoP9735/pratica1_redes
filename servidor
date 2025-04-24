@@ -5,6 +5,7 @@ import re
 
 apelido_conexao = {}
 buffer = {}
+canais = {}
 
 def validar_nome(nome):
     return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
@@ -68,22 +69,53 @@ def msg(conexao,mensagem):
         return conexao, b':server 432 * ' + apelido + b' :Erroneous nickname\r\n'
     elif priv:
         dest = priv.group(1)
-        for destinatario, value in apelido_conexao.items():
-            if destinatario.lower() == dest.lower():
-                dest = destinatario
         conteudo = priv.group(2)
-        apelidos_lower = {n.lower() for n in apelido_conexao}
-        if dest.lower() in apelidos_lower:
-            for remetente, value in apelido_conexao.items():
-                if value == conexao:
-                    return apelido_conexao[dest], b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
+        
+        # Verificar se o destinatário é um canal
+        if dest.startswith(b'#'):
+            nome_canal = dest.lower()
+            if nome_canal in canais:  # Verifica se o canal existe
+                remetente = None
+                for a, c in apelido_conexao.items():
+                    if c == conexao:
+                        remetente = a
+                        break
+                if not remetente:
+                    return None, None  # Ignorar se o remetente não tiver apelido registradO
+
+                mensagem_enviar = b':' + remetente + b' PRIVMSG ' + dest + b' :' + conteudo + b'\r\n'
+                # Enviar a mensagem para todos os membros do canal, exceto o remetente
+                for membro in canais[nome_canal]:
+                    if membro != conexao:  # Não enviar para si mesmo
+                        membro.enviar(mensagem_enviar)
+                return None, None  # Não precisa retornar mensagem para o remetente
+
+        else:
+            # Se for um usuário
+            apelido_destino = None
+            for a, c in apelido_conexao.items():
+                if a.lower() == dest.lower():
+                    apelido_destino = a
+                    break
+            
+            if apelido_destino:
+                # Enviar a mensagem para o usuário destino
+                remetente = None
+                for a, c in apelido_conexao.items():
+                    if c == conexao:
+                        remetente = a
+                        break
+                if not remetente:
+                    return None, None  # Ignorar se o remetente não tiver apelido registrado
+                
+                mensagem_enviar = b':' + remetente + b' PRIVMSG ' + apelido_destino + b' :' + conteudo + b'\r\n'
+                apelido_conexao[apelido_destino].enviar(mensagem_enviar)
+            else:
+                # Caso o apelido destino não exista
+                return conexao, b':server 401 ' + dest + b' :No such nick/channel\r\n'
     elif join:
         canal = join.group(1)
-        nome_canal = canal[1:]
-        if canal[0] != b'#' or not validar_nome(nome_canal):
-            return conexao, b':server 403 ' + canal + b' :No such channel'
-        else:
-            return        
+                 
     return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
