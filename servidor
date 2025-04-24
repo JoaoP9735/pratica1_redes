@@ -143,7 +143,7 @@ def msg(conexao,mensagem):
         ])
 
         conexao.enviar(b':server 353 ' + apelido + b' = ' + canal + b' :' + nomes_usuarios.encode() + b'\r\n')
-        conexao.enviar(b':server 366 ' + apelido + b' ' + canal + b' :End of /NAMES list\r\n')    
+        conexao.enviar(b':server 366 ' + apelido + b' ' + canal + b' :End of /NAMES list.\r\n')    
              
     return None, None
 servidor = Servidor(6667)
