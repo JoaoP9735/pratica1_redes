@@ -13,9 +13,31 @@ def validar_nome(nome):
 
 def sair(conexao):
     print(conexao, 'conexão fechada')
+    
+    apelido = None
+    for a, c in apelido_conexao.items():
+        if c == conexao:
+            apelido = a
+            break
+
+    # Notificar os canais do QUIT
+    if apelido:
+        for nome_canal, membros in list(canais.items()):
+            if conexao in membros:
+                membros.remove(conexao)
+                mensagem_quit = b':' + apelido + b' QUIT :Client Quit\r\n'
+                for membro in membros:
+                    membro.enviar(mensagem_quit)
+                if not membros:
+                    del canais[nome_canal]
+
+        del apelido_conexao[apelido]
+
+    if conexao in buffer:
+        del buffer[conexao]
+
     conexao.fechar()
-
-
+     
 def dados_recebidos(conexao, dados):
     if conexao not in buffer:
         buffer[conexao] = b''
