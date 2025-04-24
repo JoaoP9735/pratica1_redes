@@ -81,8 +81,9 @@ def msg(conexao,mensagem):
         canal = join.group(1)
         nome_canal = canal[1:]
         if canal[0] != b'#' or not validar_nome(nome_canal):
-            return b':server 403 ' + canal + b' :No such channel'
-                 
+            return conexao, b':server 403 ' + canal + b' :No such channel'
+        else:
+            return        
     return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
