@@ -43,6 +43,7 @@ def msg(conexao,mensagem):
     nick = re.match(br'^NICK\s+(\S+)\r\n$', mensagem)
     priv = re.match(br'^PRIVMSG\s+(\S+)\s+:(\S+)\r\n$', mensagem)
     join = re.match(br'^JOIN\s+(\S+)\r\n', mensagem)
+    part = re.match(br'^PART\s+(\S+)(?:\s+:.*)?\r\n$', mensagem)
     if ping:
         payload = ping.group(1)
         return conexao,b':server PONG server :' + payload + b'\r\n'
@@ -129,6 +130,35 @@ def msg(conexao,mensagem):
         conexao.enviar(b':server 353 ' + apelido + b' = ' + canal + b' :' + nomes_usuarios.encode() + b'\r\n')
         conexao.enviar(b':server 366 ' + apelido + b' ' + canal + b' :End of /NAMES list.\r\n')    
              
+    elif part:
+        canal = part.group(1)
+        nome_canal = canal.lower()
+
+        if canal[0:1] != b'#' or not validar_nome(canal[1:]):
+            return conexao, b':server 403 ' + canal + b' :No such channel\r\n'
+
+        apelido = None
+        for a, c in apelido_conexao.items():
+            if c == conexao:
+                apelido = a
+                break
+        if not apelido:
+            return None, None
+
+        if nome_canal in canais and conexao in canais[nome_canal]:
+            mensagem_saida = b':' + apelido + b' PART ' + canal + b'\r\n'
+
+            for membro in canais[nome_canal]:
+                membro.enviar(mensagem_saida)
+
+            canais[nome_canal].remove(conexao)
+            if not canais[nome_canal]:
+                del canais[nome_canal]
+
+            return conexao, None  
+        else:
+            return conexao, b':server 442 ' + canal + b' :You\'re not on that channel\r\n'
+
     return None, None
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
