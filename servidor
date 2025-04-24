@@ -108,7 +108,7 @@ def msg(conexao,mensagem):
                 if not remetente:
                     return None, None  # Ignorar se o remetente não tiver apelido registrado
                 
-                mensagem_enviar = b':' + remetente.encode() + b' PRIVMSG ' + apelido_destino.encode() + b' :' + conteudo.encode() + b'\r\n'
+                mensagem_enviar = b':' + remetente + b' PRIVMSG ' + apelido_destino + b' :' + conteudo + b'\r\n'
                 apelido_conexao[apelido_destino].enviar(mensagem_enviar)
             else:
                 # Caso o apelido destino não exista
